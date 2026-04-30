@@ -1,0 +1,14 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+config/db.local.php
+
+# Logs
+*.log
