@@ -23,9 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg = 'Permissions updated. Affected users will see changes on next login (or refresh-permissions click below).';
 
         // Refresh current admin's permissions in the session if applicable
-        $role_id_now = (int) db()->query(
-            "SELECT id FROM roles WHERE name='" . $_SESSION['role'] . "'"
-        )->fetchColumn();
+        $role_stmt = db()->prepare('SELECT id FROM roles WHERE name=?');
+        $role_stmt->execute([$_SESSION['role']]);
+        $role_id_now = (int) $role_stmt->fetchColumn();
         $_SESSION['permissions'] = load_permissions_for_role($role_id_now);
     } catch (Throwable $e) {
         $pdo->rollBack();
