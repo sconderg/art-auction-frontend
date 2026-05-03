@@ -3,6 +3,17 @@ import { ArtWorkAPI, ProfileAPI, RoleAPI, PermissionsAPI, CategoryAPI, TagAPI, S
 import toast from 'react-hot-toast';
 import { fixImageUrl } from './Home';
 
+const toArray = (res: any): any[] => {
+  const d = res?.data;
+  if (Array.isArray(d)) return d;
+  if (d?.data) {
+    if (Array.isArray(d.data)) return d.data;
+    if (Array.isArray(d.data?.items)) return d.data.items;
+  }
+  if (Array.isArray(d?.items)) return d.items;
+  return [];
+};
+
 /* ───────── shared constants ───────── */
 const TABS = [
   'Pending Artworks',
@@ -63,7 +74,7 @@ function PendingArtworksTab() {
     try {
       setLoading(true);
       const res = await ArtWorkAPI.getPending();
-      setItems(res.data?.data?.items || res.data?.items || []);
+      setItems(toArray(res));
     } catch { /* handled by interceptor */ } finally { setLoading(false); }
   };
 
@@ -113,8 +124,8 @@ function RejectedDeletedTab() {
     try {
       setLoading(true);
       const [rejRes, delRes] = await Promise.all([ArtWorkAPI.getRejected(), ArtWorkAPI.getDeleted()]);
-      setRejected(rejRes.data?.data?.items || rejRes.data?.items || []);
-      setDeleted(delRes.data?.data?.items || delRes.data?.items || []);
+      setRejected(toArray(rejRes));
+      setDeleted(toArray(delRes));
     } catch { /* interceptor */ } finally { setLoading(false); }
   };
 
@@ -176,10 +187,10 @@ function UsersTab() {
         ProfileAPI.getAdmins(),
         ProfileAPI.getDeleted(),
       ]);
-      setArtists(aRes.data?.data?.items || aRes.data?.items || aRes.data || []);
-      setBuyers(bRes.data?.data?.items || bRes.data?.items || bRes.data || []);
-      setAdmins(adRes.data?.data?.items || adRes.data?.items || adRes.data || []);
-      setDeletedUsers(dRes.data?.data?.items || dRes.data?.items || dRes.data || []);
+      setArtists(toArray(aRes));
+      setBuyers(toArray(bRes));
+      setAdmins(toArray(adRes));
+      setDeletedUsers(toArray(dRes));
     } catch { /* interceptor */ } finally { setLoading(false); }
   };
 
@@ -286,7 +297,8 @@ function RolesTab() {
     try {
       setLoading(true);
       const res = await RoleAPI.getAll();
-      setRoles(res.data?.data || res.data || []);
+      const raw = toArray(res);
+      setRoles(raw.map((r: any) => typeof r === 'string' ? { id: r, name: r } : r));
     } catch { /* interceptor */ } finally { setLoading(false); }
   };
 
@@ -314,8 +326,8 @@ function RolesTab() {
     setPermLoading(true);
     try {
       const [allRes, rpRes] = await Promise.all([PermissionsAPI.getAll(), PermissionsAPI.getByRole(role.id)]);
-      setAllPermissions(allRes.data?.data || allRes.data || []);
-      const rp = rpRes.data?.data || rpRes.data || [];
+      setAllPermissions(toArray(allRes));
+      const rp = toArray(rpRes);
       setRolePermissions(rp.map((p: any) => typeof p === 'string' ? p : p.name || p.permission));
     } catch { /* interceptor */ } finally { setPermLoading(false); }
   };
@@ -398,8 +410,9 @@ function PermissionsTab() {
     (async () => {
       try {
         const [rRes, pRes] = await Promise.all([RoleAPI.getAll(), PermissionsAPI.getAll()]);
-        setRoles(rRes.data?.data || rRes.data || []);
-        setAllPermissions(pRes.data?.data || pRes.data || []);
+        const rawRoles = toArray(rRes);
+        setRoles(rawRoles.map((r: any) => typeof r === 'string' ? { id: r, name: r } : r));
+        setAllPermissions(toArray(pRes));
       } catch { /* interceptor */ } finally { setLoading(false); }
     })();
   }, []);
@@ -409,7 +422,7 @@ function PermissionsTab() {
     if (!roleId) { setRolePermissions([]); setOriginalPermissions([]); return; }
     try {
       const res = await PermissionsAPI.getByRole(roleId);
-      const rp = (res.data?.data || res.data || []).map((p: any) => typeof p === 'string' ? p : p.name || p.permission);
+      const rp = toArray(res).map((p: any) => typeof p === 'string' ? p : p.name || p.permission);
       setRolePermissions(rp);
       setOriginalPermissions(rp);
     } catch { /* interceptor */ }
@@ -499,8 +512,8 @@ function CategoriesTab() {
         CategoryAPI.getAll({ IsDeleted: false }),
         CategoryAPI.getAll({ IsDeleted: true }),
       ]);
-      const active = (activeRes.data?.data?.items || activeRes.data?.items || activeRes.data || []).map((c: any) => ({ ...c, _isDeleted: false }));
-      const deleted = (deletedRes.data?.data?.items || deletedRes.data?.items || deletedRes.data || []).map((c: any) => ({ ...c, _isDeleted: true }));
+      const active = toArray(activeRes).map((c: any) => ({ ...c, _isDeleted: false }));
+      const deleted = toArray(deletedRes).map((c: any) => ({ ...c, _isDeleted: true }));
       setCategories([...active, ...deleted]);
     } catch { /* interceptor */ } finally { setLoading(false); }
   };
@@ -616,9 +629,9 @@ function TagsTab() {
     try {
       setLoading(true);
       const [tRes, dRes, uRes] = await Promise.all([TagAPI.getAll(), TagAPI.getDeleted(), TagAPI.getUsage()]);
-      const allTags = tRes.data?.data?.items || tRes.data?.items || tRes.data?.data || tRes.data || [];
-      const del = dRes.data?.data?.items || dRes.data?.items || dRes.data?.data || dRes.data || [];
-      const usage = uRes.data?.data || uRes.data || [];
+      const allTags = toArray(tRes);
+      const del = toArray(dRes);
+      const usage = toArray(uRes);
       const usageMap: Record<number, number> = {};
       (Array.isArray(usage) ? usage : []).forEach((u: any) => { usageMap[u.tagId || u.id] = u.count || u.usageCount || 0; });
       setTags(allTags.map((t: any) => ({ ...t, usageCount: usageMap[t.id] || 0 })));
@@ -727,7 +740,7 @@ function SettingsTab() {
     (async () => {
       try {
         const res = await SystemSettingAPI.get();
-        const data = res.data?.data || res.data || {};
+        const data = res.data?.data || (typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : {});
         setSettings(data);
         if (data.logoUrl) setLogoPreview(fixImageUrl(data.logoUrl));
       } catch { /* interceptor */ } finally { setLoading(false); }
@@ -744,13 +757,14 @@ function SettingsTab() {
     setSaving(true);
     try {
       const fd = new FormData();
-      fd.append('SiteName', settings.siteName || '');
-      fd.append('Email', settings.email || '');
-      fd.append('Phone', settings.phone || '');
-      fd.append('FacebookUrl', settings.facebookUrl || '');
-      fd.append('TwitterUrl', settings.twitterUrl || '');
-      fd.append('InstagramUrl', settings.instagramUrl || '');
-      fd.append('YouTubeUrl', settings.youTubeUrl || '');
+      if (settings.siteName) fd.append('SiteName', settings.siteName);
+      if (settings.logoUrl) fd.append('LogoUrl', settings.logoUrl);
+      if (settings.email) fd.append('Email', settings.email);
+      if (settings.phone) fd.append('Phone', settings.phone);
+      if (settings.facebookUrl) fd.append('FacebookUrl', settings.facebookUrl);
+      if (settings.twitterUrl) fd.append('TwitterUrl', settings.twitterUrl);
+      if (settings.instagramUrl) fd.append('InstagramUrl', settings.instagramUrl);
+      if (settings.youTubeUrl) fd.append('YouTubeUrl', settings.youTubeUrl);
       if (logoFile) fd.append('Logo', logoFile);
       await SystemSettingAPI.update(fd);
       toast.success('Settings saved');
