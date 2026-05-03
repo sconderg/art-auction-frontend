@@ -325,17 +325,25 @@ function RolesTab() {
     setSelectedRole(role);
     setPermLoading(true);
     try {
-      const [allRes, rpRes] = await Promise.all([PermissionsAPI.getAll(), PermissionsAPI.getByRole(role.id)]);
-      setAllPermissions(toArray(allRes));
-      const rp = toArray(rpRes);
-      setRolePermissions(rp.map((p: any) => typeof p === 'string' ? p : p.name || p.permission));
+      const allRes = await PermissionsAPI.getAll();
+      const allPerms = toArray(allRes);
+      const uniquePerms = [...new Set(allPerms.map((p: any) => p.permissionName || p.name || p))].filter(Boolean);
+      setAllPermissions(uniquePerms);
+      const roleUuid = allPerms.find((p: any) => p.roleName === role.name)?.roleId;
+      if (roleUuid) {
+        setSelectedRole({ ...role, id: roleUuid });
+        const rpRes = await PermissionsAPI.getByRole(roleUuid);
+        const rp = toArray(rpRes);
+        setRolePermissions(rp.map((p: any) => p.permissionName || p.name || p));
+      } else {
+        setRolePermissions([]);
+      }
     } catch { /* interceptor */ } finally { setPermLoading(false); }
   };
 
   const togglePerm = async (perm: string) => {
     if (!selectedRole) return;
     const has = rolePermissions.includes(perm);
-    // optimistic update
     setRolePermissions(prev => has ? prev.filter(p => p !== perm) : [...prev, perm]);
     try {
       if (has) await PermissionsAPI.remove(selectedRole.id, perm);
@@ -379,15 +387,12 @@ function RolesTab() {
           <h4 style={{ marginBottom: '1rem', color: '#6366f1' }}>Permissions for {selectedRole.name}</h4>
           {permLoading ? <div className="loading-state"><div className="spinner" /></div> : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.5rem' }}>
-              {allPermissions.map((p: any) => {
-                const name = typeof p === 'string' ? p : p.name || p.permission;
-                return (
-                  <label key={name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    <input type="checkbox" checked={rolePermissions.includes(name)} onChange={() => togglePerm(name)} />
-                    {name}
-                  </label>
-                );
-              })}
+              {allPermissions.map((name: string) => (
+                <label key={name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={rolePermissions.includes(name)} onChange={() => togglePerm(name)} />
+                  {name}
+                </label>
+              ))}
             </div>
           )}
         </div>
@@ -409,10 +414,21 @@ function PermissionsTab() {
   useEffect(() => {
     (async () => {
       try {
-        const [rRes, pRes] = await Promise.all([RoleAPI.getAll(), PermissionsAPI.getAll()]);
+        const pRes = await PermissionsAPI.getAll();
+        const allPerms = toArray(pRes);
+        const roleMap = new Map<string, string>();
+        const permNames = new Set<string>();
+        allPerms.forEach((p: any) => {
+          if (p.roleName && p.roleId) roleMap.set(p.roleName, p.roleId);
+          if (p.permissionName) permNames.add(p.permissionName);
+        });
+        const rRes = await RoleAPI.getAll();
         const rawRoles = toArray(rRes);
-        setRoles(rawRoles.map((r: any) => typeof r === 'string' ? { id: r, name: r } : r));
-        setAllPermissions(toArray(pRes));
+        setRoles(rawRoles.map((r: any) => {
+          const name = typeof r === 'string' ? r : r.name;
+          return { id: roleMap.get(name) || name, name };
+        }));
+        setAllPermissions([...permNames]);
       } catch { /* interceptor */ } finally { setLoading(false); }
     })();
   }, []);
@@ -422,7 +438,7 @@ function PermissionsTab() {
     if (!roleId) { setRolePermissions([]); setOriginalPermissions([]); return; }
     try {
       const res = await PermissionsAPI.getByRole(roleId);
-      const rp = toArray(res).map((p: any) => typeof p === 'string' ? p : p.name || p.permission);
+      const rp = toArray(res).map((p: any) => p.permissionName || p.name || p);
       setRolePermissions(rp);
       setOriginalPermissions(rp);
     } catch { /* interceptor */ }
@@ -474,15 +490,12 @@ function PermissionsTab() {
       {selectedRoleId && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
-            {allPermissions.map((p: any) => {
-              const name = typeof p === 'string' ? p : p.name || p.permission;
-              return (
-                <label key={name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  <input type="checkbox" checked={rolePermissions.includes(name)} onChange={() => toggle(name)} />
-                  {name}
-                </label>
-              );
-            })}
+            {allPermissions.map((name: string) => (
+              <label key={name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <input type="checkbox" checked={rolePermissions.includes(name)} onChange={() => toggle(name)} />
+                {name}
+              </label>
+            ))}
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="bid-btn" style={{ background: '#10b981', padding: '0.5rem 1.5rem' }} disabled={!hasChanges() || saving} onClick={save}>{saving ? 'Saving...' : 'Save'}</button>
@@ -547,7 +560,7 @@ function CategoriesTab() {
 
   const startEdit = async (id: number) => {
     try {
-      const res = await CategoryAPI.getForUpdate(id);
+      const res = await CategoryAPI.getAdminDetail(id);
       const c = res.data?.data || res.data;
       setEditingId(id);
       setFormName(c.name || '');
@@ -758,7 +771,7 @@ function SettingsTab() {
     try {
       const fd = new FormData();
       if (settings.siteName) fd.append('SiteName', settings.siteName);
-      if (settings.logoUrl) fd.append('LogoUrl', settings.logoUrl);
+      if (!logoFile && settings.logoUrl) fd.append('LogoUrl', settings.logoUrl);
       if (settings.email) fd.append('Email', settings.email);
       if (settings.phone) fd.append('Phone', settings.phone);
       if (settings.facebookUrl) fd.append('FacebookUrl', settings.facebookUrl);
