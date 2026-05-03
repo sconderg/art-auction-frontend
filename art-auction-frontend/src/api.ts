@@ -63,10 +63,20 @@ export const AccountAPI = {
 export const ArtWorkAPI = {
   getAll: (params?: any) => api.get('/api/ArtWork', { params }),
   getById: (id: number | string) => api.get(`/api/ArtWork/${id}`),
-  getPending: () => api.get('/api/ArtWork/pending'),
+  getPending: (params?: any) => api.get('/api/ArtWork/pending', { params }),
+  getRejected: (params?: any) => api.get('/api/ArtWork/rejected', { params }),
+  getDeleted: (params?: any) => api.get('/api/ArtWork/deleted', { params }),
   create: (data: FormData) => api.post('/api/ArtWork', data),
+  update: (id: number, data: any) => api.put(`/api/ArtWork/${id}`, data),
+  delete: (id: number) => api.delete(`/api/ArtWork/${id}`),
+  restore: (id: number) => api.post(`/api/ArtWork/${id}/restore`),
   approve: (id: number | string) => api.post(`/api/ArtWork/${id}/approve`),
   reject: (id: number | string) => api.post(`/api/ArtWork/${id}/reject`),
+  getAdminDetail: (id: number) => api.get(`/api/ArtWork/${id}/admin`),
+  getForUpdate: (id: number) => api.get(`/api/ArtWork/${id}/update`),
+  getStats: (artistId?: string) => api.get('/api/ArtWork/stats', { params: { artistId } }),
+  isTitleAvailable: (title: string) => api.get('/api/ArtWork/is-title-available', { params: { title } }),
+  getAuctionStatuses: () => api.get('/api/ArtWork/auction-status'),
 };
 
 // === Auction ===
@@ -95,21 +105,53 @@ export const WatchListAPI = {
 
 // === Category ===
 export const CategoryAPI = {
-  getAll: () => api.get('/api/Category'),
+  getAll: (params?: any) => api.get('/api/Category', { params }),
   getDropdown: () => api.get('/api/Category/dropdown'),
+  create: (data: FormData) => api.post('/api/Category', data),
+  update: (id: number, data: FormData) => api.put(`/api/Category/${id}`, data),
+  delete: (id: number) => api.delete(`/api/Category/${id}`),
+  restore: (id: number) => api.put(`/api/Category/${id}/restore`),
+  getAdminDetail: (id: number, ignoreQueryFilter = false) => api.get(`/api/Category/${id}/admin`, { params: { ignoreQueryFilter } }),
+  getForUpdate: (id: number) => api.get(`/api/Category/${id}/update`),
+  getStats: () => api.get('/api/Category/stats'),
+  getArtworksCount: () => api.get('/api/Category/artworks-count'),
+  checkName: (name: string) => api.get('/api/Category/check-name', { params: { name } }),
 };
 
 // === Tags ===
 export const TagAPI = {
-  getAll: () => api.get('/api/Tag'),
+  getAll: (searchTerm?: string) => api.get('/api/Tag', { params: { searchTerm } }),
   getDropdown: () => api.get('/api/Tag/dropdown'),
+  create: (data: { name: string }) => api.post('/api/Tag', data),
+  update: (id: number, data: { name: string }) => api.put(`/api/Tag/${id}`, data),
+  delete: (id: number) => api.delete(`/api/Tag/${id}`),
+  restore: (id: number) => api.put(`/api/Tag/${id}/restore`),
+  getAdminDetail: (id: number, ignoreQueryFilter = false) => api.get(`/api/Tag/${id}/admin`, { params: { ignoreQueryFilter } }),
+  getForUpdate: (id: number) => api.get(`/api/Tag/${id}/update`),
+  getDeleted: () => api.get('/api/Tag/deleted'),
+  checkName: (name: string) => api.get('/api/Tag/check-name', { params: { name } }),
+  getUsageCount: (id: number) => api.get(`/api/Tag/${id}/usage-count`),
+  getUsage: () => api.get('/api/Tag/usage'),
 };
 
 // === Profile / Users ===
 export const ProfileAPI = {
   getMyProfile: () => api.get('/my-profile'),
-  getArtists: () => api.get('/artists'),
-  getBuyers: () => api.get('/buyers'),
+  getArtists: (params?: any) => api.get('/artists', { params }),
+  getBuyers: (term?: string) => api.get('/buyers', { params: { term } }),
+  getAdmins: () => api.get('/admins'),
+  getDeleted: (term?: string) => api.get('/deleted', { params: { term } }),
+  approveArtist: (artistId: string) => api.put(`/${artistId}/approve`),
+  rejectArtist: (artistId: string) => api.put(`/${artistId}/reject`),
+  updateProfile: (data: any) => api.put('/update-profile', data),
+  updateProfileImage: (data: FormData) => api.put('/update-profile-image', data),
+  deleteProfile: () => api.delete('/delete-profile'),
+  adminUpdateUser: (userId: string, data: any) => api.put(`/${userId}`, data),
+  adminDeleteUser: (userId: string) => api.delete(`/${userId}`),
+  restoreUser: (userId: string) => api.put(`/${userId}/restore`),
+  blockUser: (userId: string) => api.put(`/${userId}/block`),
+  unblockUser: (userId: string) => api.put(`/${userId}/unblock`),
+  getArtistStatuses: () => api.get('/artist-status'),
 };
 
 // === Notification ===
@@ -146,4 +188,31 @@ export const AuctionResultAPI = {
 export const SystemSettingAPI = {
   get: () => api.get('/api/SystemSetting'),
   update: (data: FormData) => api.put('/api/SystemSetting', data),
+};
+
+// === Role ===
+export const RoleAPI = {
+  getAll: () => api.get('/api/Role'),
+  create: (roleName: string) => api.post(`/api/Role/${encodeURIComponent(roleName)}`),
+  delete: (roleName: string) => api.delete(`/api/Role/${encodeURIComponent(roleName)}`),
+  update: (oldName: string, newName: string) => api.put(`/api/Role/update-role/${encodeURIComponent(oldName)}/${encodeURIComponent(newName)}`),
+  assignRole: (userId: string, roleName: string) => api.post(`/api/Role/assign-role/${userId}/${encodeURIComponent(roleName)}`),
+  unassignRole: (userId: string, roleName: string) => api.delete(`/api/Role/unassign-role/${userId}/${encodeURIComponent(roleName)}`),
+  assignRoles: (userId: string, roles: string[]) => api.post(`/api/Role/assign-roles/${userId}`, roles),
+  unassignRoles: (userId: string, roles: string[]) => api.post(`/api/Role/unassign-roles/${userId}`, roles),
+  removeAllRoles: (userId: string) => api.delete(`/api/Role/remove-all-roles/${userId}`),
+  getUserRoles: (userId: string) => api.get(`/api/Role/user-roles/${userId}`),
+  userHasRole: (userId: string, roleName: string) => api.get(`/api/Role/user-has-role/${userId}/${encodeURIComponent(roleName)}`),
+};
+
+// === Permissions ===
+export const PermissionsAPI = {
+  getAll: () => api.get('/api/Permissions'),
+  getByRole: (roleId: string) => api.get(`/api/Permissions/role/${roleId}`),
+  check: (roleName: string, permissionName: string) => api.get('/api/Permissions/check', { params: { roleName, permissionName } }),
+  assign: (roleId: string, permission: string) => api.post('/api/Permissions/assign', null, { params: { roleId, permission } }),
+  remove: (roleId: string, permission: string) => api.delete('/api/Permissions/remove', { params: { roleId, permission } }),
+  assignBulk: (data: { roleId: string; permissions: string[] }) => api.post('/api/Permissions/assign-bulk', data),
+  removeBulk: (data: { roleId: string; permissions: string[] }) => api.post('/api/Permissions/remove-bulk', data),
+  reset: (roleId: string) => api.delete(`/api/Permissions/reset/${roleId}`),
 };
