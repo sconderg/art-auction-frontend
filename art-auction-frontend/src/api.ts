@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://artauction.runasp.net';
+const API_BASE_URL = 'https://artauction.runasp.net';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
